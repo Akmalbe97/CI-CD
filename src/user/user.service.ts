@@ -1,6 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
@@ -9,7 +7,7 @@ import { JwtService } from "@nestjs/jwt";
 
 @Injectable()
 export class UserService {
-  verificationCodeService: any;
+  verificationCodeService;
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
     private jwtService: JwtService,
@@ -17,11 +15,12 @@ export class UserService {
 
   //// Register
   async register(email: string, password: string): Promise<User> {
-    const hash = await bcrypt.hash(password, 12);
-    const createUser = this.userRepository.create({ email, password: hash });
-    if (createUser) {
+    const exsistUser = await this.userRepository.findOne({ where: { email } });
+    if (exsistUser) {
       throw new Error('User already exsist');
     }
+    const hash = await bcrypt.hash(password, 12);
+    const createUser = this.userRepository.create({ email, password: hash });
     return await this.userRepository.save(createUser);
   }
 
@@ -31,7 +30,10 @@ export class UserService {
     if(!user) {
       throw new Error("user not found")
     }
-    const checkPassword = await bcrypt.compare(password, user.password) 
+    const checkPassword = await bcrypt.compare(password, user.password)
+    if (!checkPassword) {
+      throw new Error("Wrong password")
+    } 
     const payload = {email: user.email, userId: user.id}
     const token = this.jwtService.sign(payload)
     return {token}
@@ -47,22 +49,25 @@ export class UserService {
   }
 
   //// 
-  findOneUser(id: number) {
-    const data = this.userRepository.findOne({ where: { id } });
-
-    if (data) {
-      return data;
+  async findOneUser(id: number): Promise<User> {
+    const data = await this.userRepository.findOne({ where: { id } });
+    if (!data) {
+      throw new NotFoundException('User not found');
     }
-    throw new NotFoundException('user not found');
+    return data;
   }
+  
 
   async getCurrentUser(token: string): Promise<User> {
     const payload = this.jwtService.verify(token);
     if (!payload) {
       throw new Error('Invalid token');
     }
-    const user = await this.userRepository.findOne(payload.userId);
+    const user = await this.userRepository.findOne({ where: { id: payload.userId } });
+    if (!user) {
+      throw new Error('User not found');
+    }
     return user;
-  }
+  }  
  
 }
