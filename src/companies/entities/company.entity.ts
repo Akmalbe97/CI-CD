@@ -1,4 +1,4 @@
-import { Entity, ObjectIdColumn, ObjectId, Column } from "typeorm";
+import { Entity, ObjectIdColumn, Column } from "typeorm";
 
 @Entity()
 export class Company {
