@@ -1,0 +1,30 @@
+services:
+mongodb:
+  container_name: mongodb-container
+  image: mongo:6-jammy
+  restart: always
+  ports:
+    - "27017:27017"
+  volumes:
+    - ./mongodbdata:/data/db
+  environment:
+    - MONGO_INITDB_ROOT_USERNAME=admin
+    - MONGO_INITDB_ROOT_PASSWORD=secret
+  healthcheck:
+    test: echo 'db.runCommand("ping").ok' | mongosh mongodb://admin:secret@localhost:27017/test --quiet
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+    app: 
+      container_name: mongo-docker
+      build:
+        context: ./
+      depends_on:
+        mongodb:
+        condition: service_health
+      restart: unless-stopped
+      ports:
+        - "4000:4000"
+      environment: 
+        -MONGO_URI = mongodb://admin:secret@mongodb:27017/mydatabase
